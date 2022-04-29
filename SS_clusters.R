@@ -7,61 +7,68 @@
 ####  
 #### 
 #######################################################################
-source("/Users/gloria/Dropbox/Thèse/git/index_regular_variation/IndexofRV.R")
+source("/Users/Buritica/Dropbox/Thèse/git/index_regular_variation/IndexofRV.R")
 library(ggplot2)
 library(latex2exp)
 library(gridExtra)
 
-n <-16000
-thr2   <- c(2)
+n <-8000
+thr2   <- thr <- c(2)
 bu     <- sapply(1:6, function(k) 2^k)
 phi0    <- c(0.8,0.6); 
 infor1 <- data.frame( "DATA" = NULL, "TYPE"=NULL, "zn" =NULL, "BL" = NULL, "TH" = NULL, "MODE" = NULL )
 infor2 <- data.frame( "DATA" = NULL, "TYPE"=NULL, "zn" =NULL, "BL" = NULL, "TH" = NULL, "MODE" = NULL )
-alpha0 <- 1.3
+alpha0 <- 1
 thet <-   sapply(1:length(phi0), function(k) 1-phi0[k]^alpha0)
-c1   <-   sapply(1:length(phi0), function(k) (1-phi0[k])^alpha0/thet[k])
+c1   <-   1/sapply(1:length(phi0), function(k) (1-phi0[k])^alpha0/thet[k])
 title<-   TeX('$\\widehat{\\theta}_{| \\mathbf{X}|}$') #TeX('$\\frac{1}{\\widehat{c}(1)$')# 
 ## functions theta 
-for(N in 1:10){
+for(N in 11:500){
   for(j in 1:length(phi0)){
     phi    <- phi0[j]
     path   <- abs(arima.sim(n=n, list(ar=phi, ma=0), rand.gen=function(n) rt(n,df=alpha0) ))
     n      <- length(path)
     alpha  <- (1/alphaestimator(path,k1=floor(n^0.8))$xi);print(alpha)
+    #alpha <- alpha0
     sorted <- sort(path,decreasing = T)
-    p      <- 1#alpha
+    p      <- 1#alpha#
     for(i in 1:length(bu)){
-      suma  <- sapply( 1:floor(n/bu[i]), function(k) sum(   path[((k-1)*bu[i] + 1):(k*bu[i])]^p )  )
-      maxi  <- sapply( 1:floor(n/bu[i]), function(k) max(   path[((k-1)*bu[i] + 1):(k*bu[i])] )  )
+      suma       <- sapply( 1:floor(n/bu[i]), function(k) sum(   path[((k-1)*bu[i] + 1):(k*bu[i])]^p )  )
+      if(p != alpha) sumaalpha  <- sapply( 1:floor(n/bu[i]), function(k) sum(   path[((k-1)*bu[i] + 1):(k*bu[i])]^alpha )  )
+      maxi       <- sapply( 1:floor(n/bu[i]), function(k) max(   path[((k-1)*bu[i] + 1):(k*bu[i])] )  )
     
-      sortedsuma <- sort(suma, decreasing = TRUE); n2 <- length(suma)
-      sortedmaxi <- sort(maxi, decreasing = TRUE); #print(n2)
+      sortedsuma      <- sort(suma, decreasing = TRUE); n2 <- length(suma)
+      if(p != alpha) sortedsumaalpha <- sort(sumaalpha, decreasing = TRUE);
+      sortedmaxi      <- sort(maxi, decreasing = TRUE); #print(n2)
     
         ## thresholds
-        th1     <- th11 <- sorted[ max(2,floor(n^thr[1])) ]                       ## empirical th.
-        th2     <- sortedsuma[ max(1,floor( (n)/bu[i]^thr2[1]) ) ]                ## p-norm th.
-        th3     <- sortedmaxi[ max(1,floor( (n)/bu[i]^thr2[1]) ) ]                ## supremom norm th.
+        #th1     <- th11 <- sorted[ max(2,floor(n^thr[1])) ]                            ## empirical th.
+        if(p != alpha) th1     <- sortedsumaalpha[ max(1,floor( (n)/bu[i]^thr2[1]))+1 ]                ## p-norm th.
+        th2     <- sortedsuma[ max(1,floor( (n)/bu[i]^thr2[1]))+1 ]                     ## p-norm th.
+        th3     <- sortedmaxi[ max(1,floor( (n)/bu[i]^thr2[1]))+1 ]                     ## supremom norm th.
         ## index
         #ind1     <- which(suma > th1^(alpha) )
-        ind1     <- which(suma >= th2 )                                         ## choosing clusters
-        ind2     <- which(maxi >= th3 ) 
+        if(p != alpha) ind11    <- which(sumaalpha > th1)
+        ind1     <- which(suma > th2 )                                         ## choosing clusters
+        ind2     <- which(maxi > th3 )                                         ## Careful not to use >=. 
         # functions c(1)
-        g1 <- function(vector, p)      (sum(vector^alpha)/(sum(vector)^alpha))
-        g2 <- function(vector,th3)     sum( sum(vector) >= th3 )
-        g3 <- function(vector,th3)     sum( vector >= th3 )
-        estim1       <-  mean( sapply(ind1, function(k)    g1(path[((k-1)*bu[i] +1):(k*bu[i])] , p)  )) 
+        
+        g1  <- function(vector)      (sum(vector^alpha)/(sum(vector^p)^alpha))
+        g3  <- function(vector, p)      (sum(vector^p)^alpha/(sum(vector^alpha)))
+        g2  <- function(vector,th3)     ( sum(vector) > th3 )*1
+
+        estim1       <-  mean( sapply(ind1, function(k)    g1(path[((k-1)*bu[i] +1):(k*bu[i])])  )) 
         estim2       <-  sum(  sapply(1:n2, function(k)    g2(path[((k-1)*bu[i] +1):(k*bu[i])] , th3 )  )) 
-        estim3       <-  sum(  sapply(1:n2, function(k)    g3(path[((k-1)*bu[i] +1):(k*bu[i])] , th3 )  )) 
+        estim3       <-  sum(  sapply(1:n2, function(k)    g3(path[((k-1)*bu[i] +1):(k*bu[i])] , p )  )) 
         
         # functions theta
         #g1 <- function(vector, p)      (max(vector^p)/sum(vector^p))
-        #g2 <- function(vector,th3)     sum( vector >= th3)
+        #g2 <- function(vector,th3)     sum( vector > th3)
         #estim1       <-  mean( sapply(ind1, function(k)    g1(path[((k-1)*bu[i] +1):(k*bu[i])] , p)  )) 
         #estim2      <-   mean(  sapply(ind2, function(k)    g2(path[((k-1)*bu[i] +1):(k*bu[i])] , th3 )  )) 
         
       
-        estim2       <-   estim3/estim2 # 1/estim2
+        estim2       <-   estim3/estim2 # 1/estim2 #
         if(j==1){
           infor1       <- rbind( infor1, c(estim1, 1, th2, bu[i], thr2[1], mode=j))
           infor1       <- rbind( infor1, c(estim2, 2, th3, bu[i], thr2[1], mode=j))
@@ -73,6 +80,7 @@ for(N in 1:10){
       }
   }
 }
+
 names(infor2) <- names(infor1) <-  c("DATA", "TYPE", "zn", "BL", "TH", "MODE")
 
 
@@ -91,7 +99,7 @@ grid.arrange(g1,g2,nrow=1)
 
 #thet <- c1
 niceplot <- function(infor,estim, title){
-  gg<- ggplot(infor, aes( y = DATA,  type=as.factor(BL), fill = as.factor(TYPE) ))+ 
+  gg<- ggplot(infor, aes( y = 1/DATA,  type=as.factor(BL), fill = as.factor(TYPE) ))+ 
     #fill=as.factor(MODE), colour = as.factor(MODE)) +
     geom_boxplot(#"#4271AE",
       colour = "#4271AE", alpha = 1,outlier.colour = "azure2", outlier.shape = 1, outlier.size = 0.1, outlier.alpha = 1)+ #+geom_point(alpha=0.1,pch=16,size=0.5)+
@@ -103,7 +111,7 @@ niceplot <- function(infor,estim, title){
 addingtitles <- function(gg,title,title2=" ",estim){
   gg <- gg +
     geom_hline(yintercept=estim,lty=2, col="blue", alpha=1) +
-    scale_y_continuous(name =" " , labels = c(0,round(estim,3),1,2), breaks = c(0,round(estim,3),1,2), limits=c(0,2)
+    scale_y_continuous(name =" " , labels = c(0,round(estim,3),1), breaks = c(0,round(estim,3),1), limits=c(0,5)
                        )+ 
     scale_x_continuous(name = title, labels=sapply(1:6, function(k) 2^k), breaks=seq(-0.32,0.32,0.125) )+
     theme_bw()+              
