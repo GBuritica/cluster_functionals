@@ -182,7 +182,7 @@ boxplot(pivar,freq=F, ylim = c(0,1))
 ## Estimate as a function of k with confidence intervals 
 ## for one single trajectory
 
-n <- 12000
+n <- 16000
 klim         <- floor(n^0.7)
 b            <- unique(floor(sqrt(n/1:klim)))
 klim1        <- floor(n/b^2) 
@@ -191,7 +191,7 @@ alphae       <- 1/alphaestimator(path,k1=1200)$xi
 estimate     <- eiCP2(path,alphae,klim1,n) 
 ks           <- estimate$k
 plot(ks, estimate$estimate[,1],type = "l", xlim = c(0,200) , ylim = c(0,1), 
-     xlab = "k", ylab = " ")
+     xlab = "k", ylab = "Estimate")
 lines(ks, estimate$estimate[,1] + qnorm(0.975)*sqrt(abs(estimate$variance[,1] - estimate$estimate[,1]^2)/ks) , lty = 3, col = 'black' )
 lines(ks, estimate$estimate[,1] - qnorm(0.975)*sqrt(abs(estimate$variance[,1] - estimate$estimate[,1]^2)/ks) , lty = 3, col = 'black' )
 points(ks,estimate$estimate[,1], pch = 16, cex = 0.5)
